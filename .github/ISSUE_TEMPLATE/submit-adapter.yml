@@ -1,0 +1,29 @@
+name: 野良サイト定義を投稿する
+description: 万能小説（UniversalNovelReader）の野良カタログへサイト定義（YAML）を投稿します
+title: "[定義投稿] サイト名"
+labels: ["community-adapter"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Web ビルダー（https://dr-ksk.github.io/universal-novel-reader-catalog/）から自動入力して投稿するのがおすすめです。
+        投稿後、GitHub Actions が自動で構文・安全性チェックを行い、問題なければ野良カタログへ公開されます（YAML形式のみ自動公開）。
+  - type: textarea
+    id: definition
+    attributes:
+      label: サイト定義パッケージ（JSON または UNR1:... 共有コード）
+      description: ビルダーで生成した JSON または UNR1:... を貼り付けてください。
+      placeholder: |
+        ```json
+        {
+          "schema_version": 1,
+          ...
+        }
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 補足・動作確認メモ（任意）
+      placeholder: 動作確認した作品のURLや注意事項があれば記入してください。

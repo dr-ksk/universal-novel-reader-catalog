@@ -1,0 +1,8 @@
+# Force LF line endings across all text files
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.woff2 binary

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>万能小説 サイト定義カタログ＆ビルダー</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div>
+        <h1>万能小説 サイト定義ハブ</h1>
+        <p class="subtitle">UniversalNovelReader 向け サイト定義カタログ（公式・野良）＆ Webビルダー</p>
+      </div>
+      <div class="header-links">
+        <a class="btn btn-outline" href="https://github.com/dr-ksk/universal-novel-reader-catalog/issues" target="_blank" rel="noopener">野良掲示板 (GitHub Issues)</a>
+      </div>
+    </div>
+    <nav class="container tabs" role="tablist">
+      <button class="tab-btn active" data-tab="catalog">カタログ一覧（公式・野良）</button>
+      <button class="tab-btn" data-tab="builder">サイト定義ビルダー（作成・テスト・投稿）</button>
+    </nav>
+  </header>
+
+  <main class="container main-content">
+    <!-- ==================== タブ1: カタログ一覧 ==================== -->
+    <section id="tab-catalog" class="tab-panel active">
+      <div class="catalog-toolbar">
+        <div class="channel-pills">
+          <button class="pill active" data-channel="official">公式 (<span id="count-official">0</span>)</button>
+          <button class="pill" data-channel="community">野良・コミュニティ (<span id="count-community">0</span>)</button>
+        </div>
+        <input id="catalog-search" type="search" placeholder="サイト名・ドメイン・作成者で検索..." />
+      </div>
+
+      <div id="catalog-notice" class="notice-banner" hidden></div>
+      <div id="catalog-grid" class="catalog-grid"></div>
+    </section>
+
+    <!-- ==================== タブ2: サイト定義ビルダー ==================== -->
+    <section id="tab-builder" class="tab-panel">
+      <div class="builder-intro card">
+        <div>
+          <h2>PCブラウザでサイト定義を作成 → 野良掲示板へ投稿</h2>
+          <p class="muted">
+            CSSセレクタを入力し、対象ページのHTMLソース（<code>Ctrl+U</code> でコピー）を貼るだけでその場で抽出テストができます。完成したら「野良掲示板へ投稿」からワンクリックで共有できます。
+          </p>
+        </div>
+        <div class="builder-intro-actions">
+          <button id="btn-copy-ai-prompt" class="btn btn-outline" type="button">AI解析用プロンプトをコピー</button>
+          <button id="btn-import-existing" class="btn btn-outline" type="button">JSON / UNR1 から読み込み</button>
+        </div>
+      </div>
+
+      <div class="builder-layout">
+        <!-- 左カラム: 入力フォーム -->
+        <div class="builder-column">
+          <div class="card">
+            <h3>1. 基本情報</h3>
+            <div class="form-grid">
+              <label>
+                <span>サイト名 *</span>
+                <input id="f-name" type="text" placeholder="例: ハーメルン" value="カスタム小説サイト">
+              </label>
+              <label>
+                <span>定義ID（半角英小文字・数字・_）*</span>
+                <input id="f-id" type="text" placeholder="例: hameln_standard" value="custom_site">
+              </label>
+              <label>
+                <span>バージョン *</span>
+                <input id="f-version" type="text" value="1.0.0">
+              </label>
+              <label>
+                <span>作成者名（任意）</span>
+                <input id="f-author" type="text" placeholder="ニックネーム / GitHub ID">
+              </label>
+            </div>
+            <label class="full-width">
+              <span>説明（掲示板・マーケットに表示）</span>
+              <input id="f-desc" type="text" placeholder="例: 目次・本文・ルビ対応（2026年11月確認）">
+            </label>
+            <div class="url-helper">
+              <label class="flex-1">
+                <span>サンプル作品URL（正規表現の自動生成用）</span>
+                <input id="f-sample-url" type="url" placeholder="https://example.com/novel/12345/">
+              </label>
+              <button id="btn-gen-regex" class="btn btn-secondary" type="button">正規表現を生成</button>
+            </div>
+            <label class="full-width">
+              <span>マッチ用ドメイン正規表現 (domain_pattern) *</span>
+              <input id="f-domain" class="mono" type="text" value="^https?://example\.com/novel/\d+(/.*)?$">
+            </label>
+          </div>
+
+          <div class="card">
+            <h3>2. 一覧（目次）取得の定義 (index)</h3>
+            <p class="muted small">属性を取る場合は <code>セレクタ @属性名</code>（例: <code>a @href</code>）のように書けます。カンマ区切りで複数候補を指定可能です。</p>
+            <div class="form-grid">
+              <label>
+                <span>作品タイトル (title)</span>
+                <input id="idx-title" class="mono" type="text" value="h1">
+              </label>
+              <label>
+                <span>作者名 (author.selector)</span>
+                <input id="idx-author" class="mono" type="text" value=".author">
+              </label>
+              <label>
+                <span>作者名の除去正規表現 (任意)</span>
+                <input id="idx-author-regex" class="mono" type="text" placeholder="^作者：\s*">
+              </label>
+              <label>
+                <span>あらすじ (synopsis)</span>
+                <input id="idx-synopsis" class="mono" type="text" value=".synopsis">
+              </label>
+              <label>
+                <span>各話の繰り返し要素 (episodes.container) *</span>
+                <input id="idx-ep-container" class="mono" type="text" value=".episode-list li">
+              </label>
+              <label>
+                <span>各話タイトル (episodes.title) *</span>
+                <input id="idx-ep-title" class="mono" type="text" value="a">
+              </label>
+              <label>
+                <span>各話URL (episodes.url) *</span>
+                <input id="idx-ep-url" class="mono" type="text" value="a @href">
+              </label>
+              <label>
+                <span>章タイトル (episodes.chapter / 任意)</span>
+                <input id="idx-ep-chapter" class="mono" type="text" placeholder=".chapter-title">
+              </label>
+              <label>
+                <span>更新日時 (episodes.updated_at / 任意)</span>
+                <input id="idx-ep-updated" class="mono" type="text" placeholder=".date">
+              </label>
+              <label>
+                <span>目次次ページ (next_page_url / 任意)</span>
+                <input id="idx-next-page" class="mono" type="text" placeholder=".pager-next a @href">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>3. 1話ごとの本文取得の定義 (episode)</h3>
+            <div class="form-grid">
+              <label>
+                <span>話タイトル (title)</span>
+                <input id="ep-title" class="mono" type="text" value="h1.episode-title">
+              </label>
+              <label>
+                <span>本文エリア (content) *</span>
+                <input id="ep-content" class="mono" type="text" value="#novel-content">
+              </label>
+              <label>
+                <span>除外する要素 (remove)</span>
+                <input id="ep-remove" class="mono" type="text" value="script, style, iframe, .ads">
+              </label>
+              <label>
+                <span>挿絵画像 (images)</span>
+                <input id="ep-images" class="mono" type="text" value="#novel-content img @src">
+              </label>
+            </div>
+          </div>
+
+          <details class="card">
+            <summary><strong>4. 通信ヘッダー・同期設定・サイト専用CSS（任意）</strong></summary>
+            <div class="details-body">
+              <label class="full-width">
+                <span>User-Agent</span>
+                <input id="h-ua" class="mono" type="text" value="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36">
+              </label>
+              <label class="full-width">
+                <span>Cookie（年齢確認など公開用のみ。個人ログインCookieは絶対に入れないでください）</span>
+                <input id="h-cookie" class="mono" type="text" placeholder="例: over18=yes">
+              </label>
+              <label class="full-width">
+                <span>サイト専用カスタムCSS</span>
+                <textarea id="f-css" class="mono" rows="4" placeholder="ruby rt { font-size: 0.52em; }"></textarea>
+              </label>
+            </div>
+          </details>
+        </div>
+
+        <!-- 右カラム: テスト＆出力 -->
+        <div class="builder-column">
+          <div class="card">
+            <h3>ブラウザ内リアルタイム抽出テスト</h3>
+            <p class="muted small">
+              CORS制限を避けるため、対象ページで <code>Ctrl+U</code> → 全選択コピーした HTML を下に貼り付けてテストします。
+            </p>
+            <div class="test-tabs">
+              <button class="pill small-pill active" data-test-mode="index" type="button">① 一覧ページのHTMLテスト</button>
+              <button class="pill small-pill" data-test-mode="episode" type="button">② 本文ページのHTMLテスト</button>
+            </div>
+
+            <div id="test-panel-index" class="test-panel active">
+              <textarea id="test-index-html" class="mono" rows="7" placeholder="目次ページのHTMLソースをここに貼り付け..."></textarea>
+              <button id="btn-run-index-test" class="btn btn-primary full-btn" type="button">一覧を抽出テスト</button>
+              <div id="test-index-result" class="test-result" hidden></div>
+            </div>
+
+            <div id="test-panel-episode" class="test-panel">
+              <textarea id="test-episode-html" class="mono" rows="7" placeholder="1話分の本文ページのHTMLソースをここに貼り付け..."></textarea>
+              <button id="btn-run-episode-test" class="btn btn-primary full-btn" type="button">本文を抽出テスト</button>
+              <div id="test-episode-result" class="test-result" hidden></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>出力・共有・野良掲示板へ投稿</h3>
+            <div class="action-stack">
+              <button id="btn-submit-issue" class="btn btn-accent full-btn" type="button">野良掲示板（GitHub Issue）へ投稿する</button>
+              <div class="action-row">
+                <button id="btn-copy-unr1" class="btn btn-primary flex-1" type="button">共有コード (UNR1) をコピー</button>
+                <button id="btn-download-json" class="btn btn-secondary flex-1" type="button">.unr.json をダウンロード</button>
+              </div>
+              <button id="btn-copy-json" class="btn btn-outline full-btn" type="button">JSON 全文をコピー</button>
+            </div>
+
+            <details class="preview-box" open>
+              <summary>生成される YAML プレビュー</summary>
+              <pre id="yaml-preview" class="code-preview"></pre>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <footer class="site-footer">
+    <div class="container">
+      万能小説 (UniversalNovelReader) — GitHub Pages 無料カタログ＆ビルダー
+    </div>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

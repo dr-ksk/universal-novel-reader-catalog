@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "adapter_id": "syosetu_standard",
+  "name": "小説家になろう",
+  "version": "1.0.4",
+  "author": "official",
+  "description": "小説家になろう・ノクターンノベルズ等の公式標準定義（複数ページ目次・ルビ・挿絵対応）",
+  "domain_pattern": "^https?://(ncode|novel18)\\.syosetu\\.com/[a-z0-9]+(/.*)?$",
+  "adapter_type": "yaml",
+  "content": "metadata:\n  id: \"syosetu_standard\"\n  name: \"小説家になろう\"\n  version: \"1.0.4\"\n  domain_pattern: \"^https?://(ncode|novel18)\\\\.syosetu\\\\.com/[a-z0-9]+(/.*)?$\"\n\nheaders:\n  User-Agent: \"Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36\"\n  Cookie: \"over18=yes\"\n\nindex:\n  title: \".novel_title, p.novel_title, h1.p-novel__title, h1\"\n  author:\n    selector: \".novel_writername, .p-novel__author\"\n    regex_replace: [\"^作者：\\\\s*\", \"\"]\n  synopsis: \"#novel_ex, .p-novel__summary\"\n\n  episodes:\n    container: \".p-eplist__sublist, .novel_sublist2\"\n    title: \".p-eplist__subtitle, dd.subtitle a, a\"\n    url: \".p-eplist__subtitle @href, dd.subtitle a @href, a @href\"\n    updated_at: \".p-eplist__update, dt.long_update\"\n    chapter: \".p-eplist__chapter-title, .chapter_title\"\n\n  next_page_url: \".c-pager__item--next, .novelview_pager-next a @href\"\n\nepisode:\n  title: \".p-novel__title, .novel_subtitle\"\n  content: \".js-novel-text, .p-novel__text, #novel_honbun, .p-novel__body\"\n  remove: \"script, style, iframe, .ads, .novel_attention, .c-announce\"\n  images: \".js-novel-text img @src, .p-novel__body img @src, #novel_honbun img @src\"\n\ncrawl:\n  interval_ms: 1500\n  auto_cache_on_sync: false\n  cache_images: true",
+  "custom_css": "ruby rt { font-size: 0.52em; }",
+  "updated_at": "2026-11-23T00:00:00Z"
+}
