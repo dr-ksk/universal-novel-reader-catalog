@@ -2,12 +2,12 @@
   "schema_version": 1,
   "adapter_id": "kakuyomu_standard",
   "name": "カクヨム",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "official",
   "description": "カクヨム公式標準定義（Next.js 目次高速パース・章タイトル・ルビ・空行調整対応）",
   "domain_pattern": "^https?://kakuyomu\\.jp/works/\\d+(/.*)?$",
   "adapter_type": "yaml",
-  "content": "metadata:\n  id: \"kakuyomu_standard\"\n  name: \"カクヨム\"\n  version: \"1.0.0\"\n  domain_pattern: \"^https?://kakuyomu\\\\.jp/works/\\\\d+(/.*)?$\"\n\nheaders:\n  User-Agent: \"Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36\"\n\nindex:\n  # カクヨムの目次ページは Next.js (__NEXT_DATA__) の JSON に全章・全話一覧が格納されています\n  mode: \"kakuyomu_next_data\"\n  script_selector: \"script#__NEXT_DATA__\"\n\nepisode:\n  title: \".widget-episodeTitle, h1\"\n  content: \".widget-episodeBody\"\n  remove: \"script, style, iframe, .ads\"\n  images: \".widget-episodeBody img @src\"\n  prev_page_url: \"#contentMain-previousEpisode @href\"\n  next_page_url: \"#contentMain-nextEpisode @href\"\n\ncrawl:\n  interval_ms: 1500\n  auto_cache_on_sync: false\n  cache_images: true",
+  "content": "metadata:\n  id: \"kakuyomu_standard\"\n  name: \"カクヨム\"\n  version: \"1.0.1\"\n  domain_pattern: \"^https?://kakuyomu\\\\.jp/works/\\\\d+(/.*)?$\"\n\nheaders:\n  User-Agent: \"Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36\"\n\nindex:\n  # カクヨムの目次ページは Next.js (__NEXT_DATA__) の JSON に全章・全話一覧が格納されています\n  mode: \"kakuyomu_next_data\"\n  script_selector: \"script#__NEXT_DATA__\"\n\nepisode:\n  title: \".widget-episodeTitle, h1\"\n  content: \".widget-episodeBody\"\n  remove: \"script, style, iframe, .ads\"\n  images: \".widget-episodeBody img @src\"\n  prev_page_url: \"#contentMain-previousEpisode @href\"\n  next_page_url: \"#contentMain-nextEpisode @href\"\n\ncrawl:\n  interval_ms: 1500\n  cache_images: true",
   "custom_css": "ruby rt { font-size: 0.52em; }\n.blank { height: 1em; }",
-  "updated_at": "2026-11-23T00:00:00Z"
+  "updated_at": "2026-11-25T14:20:00Z"
 }

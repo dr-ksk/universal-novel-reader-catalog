@@ -128,7 +128,6 @@ function buildYamlFromForm() {
 
   lines.push("crawl:");
   lines.push("  interval_ms: 1500");
-  lines.push("  auto_cache_on_sync: false");
   lines.push("  cache_images: true");
 
   return lines.join("\n");
