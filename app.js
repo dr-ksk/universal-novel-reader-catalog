@@ -1,14 +1,91 @@
-const REPO_OWNER = "dr-ksk";
-const REPO_NAME = "universal-novel-reader-catalog";
-const ISSUE_NEW_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/issues/new`;
+const CLIENT_ID_KEY = "unr_catalog_client_id";
+const VOTED_LIKES_KEY = "unr_catalog_liked_ids";
 
 const state = {
   channel: "official",
   catalogs: { official: [], community: [] },
   search: "",
+  builderType: "yaml",
+  config: {
+    db_configured: true,
+    turnstile_enabled: false,
+    turnstile_site_key: null,
+  },
+  turnstileToken: "",
+  turnstileWidgetId: null,
+  likedIds: loadLikedIds(),
 };
 
+const DEFAULT_JS_TEMPLATE = `const SiteAdapter = {
+  metadata: {
+    id: "custom_js_site",
+    name: "カスタムJSサイト",
+    version: "1.0.0",
+    domain_pattern: "^https?://example\\\\.com/.*"
+  },
+  parseIndex: async function(html, currentUrl) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const title = doc.querySelector("h1")?.textContent.trim() || doc.title || "無題";
+    const episodes = [];
+    doc.querySelectorAll(".episode-list a").forEach(function(a, i) {
+      episodes.push({
+        index: i + 1,
+        title: a.textContent.trim(),
+        url: new URL(a.getAttribute("href"), currentUrl).href
+      });
+    });
+    window.AppBridge.saveNovelIndex(JSON.stringify({
+      topUrl: currentUrl,
+      title: title,
+      episodes: episodes
+    }));
+  },
+  parseEpisode: async function(html, currentUrl) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const title = doc.querySelector("h1")?.textContent.trim() || "";
+    const content = doc.querySelector("#novel-content")?.innerHTML || "";
+    window.AppBridge.saveEpisodeContent(JSON.stringify({
+      episodeUrl: currentUrl,
+      episodeTitle: title,
+      contentHtml: content
+    }));
+  }
+};`;
+
 const $ = (id) => document.getElementById(id);
+
+function getClientId() {
+  try {
+    let id = localStorage.getItem(CLIENT_ID_KEY);
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : `c_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+      localStorage.setItem(CLIENT_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return "web-anonymous";
+  }
+}
+
+function loadLikedIds() {
+  try {
+    const raw = localStorage.getItem(VOTED_LIKES_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveLikedIds() {
+  try {
+    localStorage.setItem(VOTED_LIKES_KEY, JSON.stringify(Array.from(state.likedIds)));
+  } catch {
+    // ignore storage errors
+  }
+}
 
 function showToast(msg) {
   const el = $("toast");
@@ -17,7 +94,19 @@ function showToast(msg) {
   clearTimeout(showToast._timer);
   showToast._timer = setTimeout(() => {
     el.hidden = true;
-  }, 2600);
+  }, 2800);
+}
+
+function setSubmitStatus(type, msg) {
+  const el = $("submit-status");
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.className = `submit-status ${type}`;
+  el.textContent = msg;
 }
 
 async function encodeUnr1(pkg) {
@@ -134,23 +223,106 @@ function buildYamlFromForm() {
 }
 
 function buildPackageFromForm() {
+  const isJs = state.builderType === "javascript";
   return {
     schema_version: 1,
     adapter_id: $("f-id").value.trim() || "custom_site",
     name: $("f-name").value.trim() || "カスタムサイト",
     version: $("f-version").value.trim() || "1.0.0",
-    author: $("f-author").value.trim() || "community",
+    author: $("f-author").value.trim() || "anonymous",
     description: $("f-desc").value.trim(),
     domain_pattern: $("f-domain").value.trim(),
-    adapter_type: "yaml",
-    content: buildYamlFromForm(),
+    adapter_type: isJs ? "javascript" : "yaml",
+    content: isJs ? ($("f-js-content").value.trim() || DEFAULT_JS_TEMPLATE) : buildYamlFromForm(),
     custom_css: $("f-css").value.trim() || null,
     updated_at: new Date().toISOString(),
   };
 }
 
+function setBuilderType(type) {
+  state.builderType = type === "javascript" ? "javascript" : "yaml";
+  document.querySelectorAll("[data-adapter-type]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.adapterType === state.builderType);
+  });
+  $("yaml-builder-sections").hidden = state.builderType === "javascript";
+  $("js-builder-section").hidden = state.builderType !== "javascript";
+  $("preview-summary").textContent =
+    state.builderType === "javascript" ? "生成される JSON パッケージプレビュー" : "生成される YAML プレビュー";
+  if (state.builderType === "javascript" && !$("f-js-content").value.trim()) {
+    $("f-js-content").value = DEFAULT_JS_TEMPLATE;
+  }
+  refreshYamlPreview();
+}
+
 function refreshYamlPreview() {
-  $("yaml-preview").textContent = buildYamlFromForm();
+  if (state.builderType === "javascript") {
+    $("yaml-preview").textContent = JSON.stringify(buildPackageFromForm(), null, 2);
+  } else {
+    $("yaml-preview").textContent = buildYamlFromForm();
+  }
+}
+
+// ==================== Cloudflare API 設定・Turnstile 初期化 ====================
+async function loadServerConfig() {
+  try {
+    const res = await fetch("./api/config");
+    if (!res.ok) return;
+    const cfg = await res.json();
+    state.config = {
+      db_configured: Boolean(cfg.db_configured),
+      turnstile_enabled: Boolean(cfg.turnstile_enabled),
+      turnstile_site_key: cfg.turnstile_site_key || null,
+    };
+    if (state.config.turnstile_enabled && state.config.turnstile_site_key) {
+      initTurnstile(state.config.turnstile_site_key);
+    }
+  } catch {
+    // 静的プレビュー環境などでは無視
+  }
+}
+
+function initTurnstile(siteKey) {
+  const box = $("turnstile-box");
+  box.hidden = false;
+  if (window.turnstile) {
+    renderTurnstileWidget(siteKey);
+    return;
+  }
+  const script = document.createElement("script");
+  script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+  script.async = true;
+  script.defer = true;
+  script.onload = () => renderTurnstileWidget(siteKey);
+  document.head.appendChild(script);
+}
+
+function renderTurnstileWidget(siteKey) {
+  const box = $("turnstile-box");
+  if (!window.turnstile || !box) return;
+  box.innerHTML = "";
+  state.turnstileWidgetId = window.turnstile.render(box, {
+    sitekey: siteKey,
+    callback: (token) => {
+      state.turnstileToken = token;
+    },
+    "expired-callback": () => {
+      state.turnstileToken = "";
+    },
+    "error-callback": () => {
+      state.turnstileToken = "";
+    },
+  });
+}
+
+function resetTurnstile() {
+  state.turnstileToken = "";
+  if (window.turnstile && state.turnstileWidgetId != null) {
+    try {
+      window.turnstile.reset(state.turnstileWidgetId);
+    } catch {
+      // ignore
+    }
+  }
 }
 
 // ==================== カタログ読み込み・描画 ====================
@@ -187,7 +359,7 @@ function renderCatalog() {
   if (state.channel === "community") {
     notice.hidden = false;
     notice.innerHTML =
-      '野良カタログはユーザー投稿（GitHub Issues）から自動生成されます。新しいサイトを追加したい場合は「<strong>サイト定義ビルダー</strong>」タブから作成して投稿できます。';
+      '野良カタログはアカウント不要で誰でも投稿・評価できます。実際に使って問題なく動いた定義は <strong>「👍 いいね」</strong> を押すと、他の人の動作確認の目安になります。';
   } else {
     notice.hidden = true;
   }
@@ -209,12 +381,26 @@ function renderCatalog() {
     card.className = "card adapter-card";
 
     const typeClass = item.adapter_type === "javascript" ? "badge-js" : "badge-yaml";
+    const likes = Number(item.likes || 0);
+    const reports = Number(item.reports || 0);
+    const trustBadges = [];
+    if (state.channel === "community") {
+      if (likes >= 3 && reports === 0) {
+        trustBadges.push(`<span class="badge badge-trust">✓ 動作確認済み 👍 ${likes}</span>`);
+      } else {
+        trustBadges.push(`<span class="badge badge-like">👍 ${likes}</span>`);
+      }
+      if (reports > 0) {
+        trustBadges.push(`<span class="badge badge-warn">👎 報告 ${reports}</span>`);
+      }
+    }
     card.innerHTML = `
       <div class="adapter-head">
         <h3 class="adapter-title"></h3>
         <div class="badges">
           <span class="badge ${typeClass}">${(item.adapter_type || "yaml").toUpperCase()}</span>
           <span class="badge badge-ver">v${item.version || "1.0.0"}</span>
+          ${trustBadges.join("")}
         </div>
       </div>
       <div class="meta-line desc-line"></div>
@@ -225,7 +411,7 @@ function renderCatalog() {
     card.querySelector(".adapter-title").textContent = item.name;
     card.querySelector(".desc-line").textContent = item.description || "説明なし";
     card.querySelector(".pattern-line").textContent = item.domain_pattern;
-    card.querySelector(".author-line").textContent = `ID: ${item.adapter_id} / 作者: ${item.author || "-"}`;
+    card.querySelector(".author-line").textContent = `ID: ${item.adapter_id} / 作者: ${item.author || "anonymous"}`;
 
     const actions = card.querySelector(".adapter-actions");
 
@@ -272,14 +458,45 @@ function renderCatalog() {
     };
     actions.appendChild(btnEdit);
 
-    if (item.discussion_url) {
-      const link = document.createElement("a");
-      link.className = "btn btn-outline btn-sm";
-      link.href = item.discussion_url;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.textContent = "掲示板を見る";
-      actions.appendChild(link);
+    if (state.channel === "community") {
+      const btnLike = document.createElement("button");
+      const liked = state.likedIds.has(item.adapter_id);
+      btnLike.className = `btn btn-outline btn-sm${liked ? " btn-liked" : ""}`;
+      btnLike.textContent = liked ? `👍 いいね済み (${likes})` : `👍 いいね (${likes})`;
+      btnLike.onclick = async () => {
+        btnLike.disabled = true;
+        try {
+          const res = await fetch("./api/community/vote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              adapter_id: item.adapter_id,
+              vote_type: "like",
+              client_id: getClientId(),
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.error || `HTTP ${res.status}`);
+          }
+          item.likes = data.likes;
+          item.reports = data.reports;
+          if (data.voted) {
+            state.likedIds.add(item.adapter_id);
+            showToast(`「${item.name}」に 👍 いいねしました`);
+          } else {
+            state.likedIds.delete(item.adapter_id);
+            showToast(`「${item.name}」の 👍 いいねを取り消しました`);
+          }
+          saveLikedIds();
+          renderCatalog();
+        } catch (e) {
+          showToast(`いいねに失敗しました: ${e.message}`);
+        } finally {
+          btnLike.disabled = false;
+        }
+      };
+      actions.appendChild(btnLike);
     }
 
     grid.appendChild(card);
@@ -287,7 +504,7 @@ function renderCatalog() {
 }
 
 async function fetchPackageForItem(item) {
-  const relative = `./${state.channel}/${item.adapter_id}.unr.json?t=${Date.now()}`;
+  const relative = `./${state.channel}/${encodeURIComponent(item.adapter_id)}.unr.json?t=${Date.now()}`;
   const res = await fetch(relative);
   if (res.ok) return await res.json();
   const fallback = await fetch(item.download_url);
@@ -435,10 +652,17 @@ function loadPackageIntoBuilder(pkg) {
   $("f-name").value = pkg.name || "";
   $("f-id").value = pkg.adapter_id || "";
   $("f-version").value = pkg.version || "1.0.0";
-  $("f-author").value = pkg.author || "";
+  $("f-author").value = pkg.author && pkg.author !== "anonymous" ? pkg.author : "";
   $("f-desc").value = pkg.description || "";
   $("f-domain").value = pkg.domain_pattern || "";
   $("f-css").value = pkg.custom_css || "";
+
+  if ((pkg.adapter_type || "yaml").toLowerCase() === "javascript") {
+    $("f-js-content").value = pkg.content || DEFAULT_JS_TEMPLATE;
+    setBuilderType("javascript");
+    return;
+  }
+  setBuilderType("yaml");
 
   const yaml = pkg.content || "";
   const pick = (key) => {
@@ -498,15 +722,93 @@ function switchTab(tabName) {
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${tabName}`));
 }
 
+async function handleDirectSubmit() {
+  const pkg = buildPackageFromForm();
+  setSubmitStatus("", "");
+
+  if (!/^[a-z0-9][a-z0-9_-]{1,63}$/.test(pkg.adapter_id)) {
+    setSubmitStatus("err", "定義IDは半角英小文字・数字・_・- で2〜64文字にしてください。");
+    return;
+  }
+  if (!pkg.name.trim()) {
+    setSubmitStatus("err", "サイト名を入力してください。");
+    return;
+  }
+  if (!pkg.domain_pattern.trim()) {
+    setSubmitStatus("err", "マッチ用ドメイン正規表現を入力してください。");
+    return;
+  }
+  if (pkg.adapter_type === "javascript") {
+    try {
+      new Function(pkg.content);
+    } catch (e) {
+      setSubmitStatus("err", `JavaScript 構文エラーがあります: ${e.message}`);
+      return;
+    }
+  }
+  if ($("h-cookie").value.trim()) {
+    const ok = confirm("Cookie が入力されています。個人ログイン情報が含まれていないことを確認してください。このまま公開しますか？");
+    if (!ok) return;
+  }
+  if (state.config.turnstile_enabled && !state.turnstileToken) {
+    setSubmitStatus("err", "ボット対策チェック（Turnstile）を完了してから投稿してください。");
+    return;
+  }
+
+  const btn = $("btn-submit-direct");
+  const prevText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "送信中...";
+
+  try {
+    const res = await fetch("./api/community/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        package: pkg,
+        edit_passcode: $("f-edit-passcode").value.trim() || undefined,
+        turnstile_token: state.turnstileToken || undefined,
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.ok) {
+      const msg = data?.errors?.join("\n") || data?.error || `送信に失敗しました (HTTP ${res.status})`;
+      setSubmitStatus("err", msg);
+      resetTurnstile();
+      return;
+    }
+
+    const actionLabel = data.action === "updated" ? "更新" : "公開";
+    setSubmitStatus(
+      "ok",
+      `✅ 「${data.name}」(${data.adapter_id} v${data.version}) を野良カタログへ${actionLabel}しました！\nアプリ内のサイト定義マーケット（野良タブ）にも即時反映されます。`
+    );
+    showToast(`野良カタログへ${actionLabel}しました！`);
+    resetTurnstile();
+    await loadCatalogs();
+  } catch (e) {
+    setSubmitStatus("err", `通信エラー: ${e.message}`);
+    resetTurnstile();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevText;
+  }
+}
+
 function setupEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  document.querySelectorAll(".channel-pills .pill").forEach((pill) => {
+  $("btn-header-new").addEventListener("click", () => {
+    switchTab("builder");
+  });
+
+  document.querySelectorAll(".catalog-toolbar .channel-pills .pill").forEach((pill) => {
     pill.addEventListener("click", () => {
       state.channel = pill.dataset.channel;
-      document.querySelectorAll(".channel-pills .pill").forEach((p) => p.classList.toggle("active", p === pill));
+      document.querySelectorAll(".catalog-toolbar .channel-pills .pill").forEach((p) => p.classList.toggle("active", p === pill));
       renderCatalog();
     });
   });
@@ -514,6 +816,10 @@ function setupEvents() {
   $("catalog-search").addEventListener("input", (e) => {
     state.search = e.target.value;
     renderCatalog();
+  });
+
+  document.querySelectorAll("[data-adapter-type]").forEach((btn) => {
+    btn.addEventListener("click", () => setBuilderType(btn.dataset.adapterType));
   });
 
   document.querySelectorAll("[data-test-mode]").forEach((btn) => {
@@ -526,7 +832,7 @@ function setupEvents() {
   });
 
   document.querySelectorAll("#tab-builder input, #tab-builder textarea").forEach((el) => {
-    if (!el.id.startsWith("test-")) {
+    if (!el.id.startsWith("test-") && el.id !== "f-edit-passcode" && el.id !== "file-import-input") {
       el.addEventListener("input", refreshYamlPreview);
     }
   });
@@ -567,34 +873,7 @@ function setupEvents() {
     downloadJson(pkg, `${pkg.adapter_id}.unr.json`);
   });
 
-  $("btn-submit-issue").addEventListener("click", () => {
-    const pkg = buildPackageFromForm();
-    if (!/^[a-z0-9][a-z0-9_-]{1,63}$/.test(pkg.adapter_id)) {
-      showToast("定義IDは半角英小文字・数字・_・- で2文字以上にしてください");
-      return;
-    }
-    if ($("h-cookie").value.trim()) {
-      const ok = confirm("Cookie が入力されています。個人ログイン情報が含まれていないことを確認してください。このまま投稿画面を開きますか？");
-      if (!ok) return;
-    }
-    const title = `[定義投稿] ${pkg.name} (v${pkg.version})`;
-    const body = [
-      "### サイト定義パッケージ",
-      "```json",
-      JSON.stringify(pkg, null, 2),
-      "```",
-      "",
-      "### 補足・動作確認メモ",
-      pkg.description || "（動作確認したURL等があれば記入してください）",
-    ].join("\n");
-
-    const params = new URLSearchParams({
-      title,
-      labels: "community-adapter",
-      body,
-    });
-    window.open(`${ISSUE_NEW_URL}?${params.toString()}`, "_blank", "noopener");
-  });
+  $("btn-submit-direct").addEventListener("click", handleDirectSubmit);
 
   $("btn-copy-ai-prompt").addEventListener("click", async () => {
     const prompt = [
@@ -609,12 +888,32 @@ function setupEvents() {
     showToast("AI解析用プロンプトをコピーしました");
   });
 
+  $("btn-import-file").addEventListener("click", () => {
+    $("file-import-input").value = "";
+    $("file-import-input").click();
+  });
+
+  $("file-import-input").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const pkg = await decodeUnr1(text);
+      loadPackageIntoBuilder(pkg);
+      setSubmitStatus("", "");
+      showToast(`${pkg.name || file.name} をビルダーに読み込みました`);
+    } catch (err) {
+      showToast(`ファイル読み込み失敗: ${err.message}`);
+    }
+  });
+
   $("btn-import-existing").addEventListener("click", async () => {
     const raw = prompt("取り込みたい JSON または UNR1:... 共有コードを貼り付けてください");
     if (!raw) return;
     try {
       const pkg = await decodeUnr1(raw);
       loadPackageIntoBuilder(pkg);
+      setSubmitStatus("", "");
       showToast(`${pkg.name || "定義"} をビルダーに読み込みました`);
     } catch (e) {
       showToast(`読み込み失敗: ${e.message}`);
@@ -624,4 +923,5 @@ function setupEvents() {
 
 setupEvents();
 refreshYamlPreview();
+loadServerConfig();
 loadCatalogs();

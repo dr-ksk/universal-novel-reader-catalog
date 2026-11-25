@@ -231,6 +231,36 @@ body {
   color: var(--muted);
 }
 
+.badge-trust {
+  background: #d6f5e3;
+  color: #0e5a33;
+}
+
+.badge-like {
+  background: #e3f0fb;
+  color: #0b4f7d;
+}
+
+.badge-warn {
+  background: #fde4e1;
+  color: #9e2216;
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge-trust {
+    background: #143d27;
+    color: #8ee5b2;
+  }
+  .badge-like {
+    background: #13344d;
+    color: #98d4fc;
+  }
+  .badge-warn {
+    background: #471915;
+    color: #ffb2a8;
+  }
+}
+
 .meta-line {
   font-size: 0.83rem;
   color: var(--muted);
@@ -300,6 +330,55 @@ body {
   font-size: 0.8rem;
 }
 
+.btn-liked {
+  background: var(--badge-yaml-bg);
+  color: var(--badge-yaml-fg);
+  border-color: var(--primary);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.turnstile-box {
+  min-height: 65px;
+}
+
+.submit-status {
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--border);
+}
+
+.submit-status.ok {
+  background: #d6f5e3;
+  color: #0e5a33;
+  border-color: #6bc493;
+}
+
+.submit-status.err {
+  background: #fde4e1;
+  color: #9e2216;
+  border-color: #e68a80;
+}
+
+@media (prefers-color-scheme: dark) {
+  .submit-status.ok {
+    background: #143d27;
+    color: #8ee5b2;
+    border-color: #2b7a4f;
+  }
+  .submit-status.err {
+    background: #471915;
+    color: #ffb2a8;
+    border-color: #9e3d34;
+  }
+}
+
 .full-btn {
   width: 100%;
 }
@@ -365,6 +444,7 @@ label.full-width {
 input[type="text"],
 input[type="url"],
 input[type="search"],
+input[type="password"],
 textarea {
   width: 100%;
   padding: 9px 11px;

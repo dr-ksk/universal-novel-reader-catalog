@@ -2,7 +2,7 @@
   "catalog_version": 1,
   "channel": "official",
   "name": "万能小説 公式サイト定義",
-  "updated_at": "2026-11-25T14:20:28.003Z",
+  "updated_at": "2026-11-25T15:33:14.558Z",
   "adapters": [
     {
       "adapter_id": "kakuyomu_standard",
@@ -13,8 +13,11 @@
       "domain_pattern": "^https?://kakuyomu\\.jp/works/\\d+(/.*)?$",
       "adapter_type": "yaml",
       "updated_at": "2026-11-25T14:20:00Z",
-      "download_url": "https://dr-ksk.github.io/universal-novel-reader-catalog/official/kakuyomu_standard.unr.json",
-      "discussion_url": null
+      "download_url": "/official/kakuyomu_standard.unr.json",
+      "discussion_url": null,
+      "likes": 0,
+      "reports": 0,
+      "comments": 0
     },
     {
       "adapter_id": "syosetu_standard",
@@ -25,8 +28,11 @@
       "domain_pattern": "^https?://(ncode|novel18)\\.syosetu\\.com/[a-z0-9]+(/.*)?$",
       "adapter_type": "yaml",
       "updated_at": "2026-11-25T14:20:00Z",
-      "download_url": "https://dr-ksk.github.io/universal-novel-reader-catalog/official/syosetu_standard.unr.json",
-      "discussion_url": null
+      "download_url": "/official/syosetu_standard.unr.json",
+      "discussion_url": null,
+      "likes": 0,
+      "reports": 0,
+      "comments": 0
     }
   ]
 }

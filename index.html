@@ -14,7 +14,7 @@
         <p class="subtitle">UniversalNovelReader 向け サイト定義カタログ（公式・野良）＆ Webビルダー</p>
       </div>
       <div class="header-links">
-        <a class="btn btn-outline" href="https://github.com/dr-ksk/universal-novel-reader-catalog/issues" target="_blank" rel="noopener">野良掲示板 (GitHub Issues)</a>
+        <button id="btn-header-new" class="btn btn-outline" type="button">＋ 野良定義を投稿する</button>
       </div>
     </div>
     <nav class="container tabs" role="tablist">
@@ -42,14 +42,16 @@
     <section id="tab-builder" class="tab-panel">
       <div class="builder-intro card">
         <div>
-          <h2>PCブラウザでサイト定義を作成 → 野良掲示板へ投稿</h2>
+          <h2>ブラウザでサイト定義を作成 → アカウント不要で野良カタログへ投稿</h2>
           <p class="muted">
-            CSSセレクタを入力し、対象ページのHTMLソース（<code>Ctrl+U</code> でコピー）を貼るだけでその場で抽出テストができます。完成したら「野良掲示板へ投稿」からワンクリックで共有できます。
+            CSSセレクタまたは JavaScript を入力し、対象ページのHTMLソース（<code>Ctrl+U</code> でコピー）を貼るだけで抽出テストができます。完成したらアカウント不要・匿名でそのまま野良カタログへ公開できます。
           </p>
         </div>
         <div class="builder-intro-actions">
           <button id="btn-copy-ai-prompt" class="btn btn-outline" type="button">AI解析用プロンプトをコピー</button>
-          <button id="btn-import-existing" class="btn btn-outline" type="button">JSON / UNR1 から読み込み</button>
+          <button id="btn-import-file" class="btn btn-outline" type="button">.unr.json ファイル読込</button>
+          <input id="file-import-input" type="file" accept=".json,.txt,application/json" hidden />
+          <button id="btn-import-existing" class="btn btn-outline" type="button">JSON / UNR1 貼付読込</button>
         </div>
       </div>
 
@@ -57,7 +59,13 @@
         <!-- 左カラム: 入力フォーム -->
         <div class="builder-column">
           <div class="card">
-            <h3>1. 基本情報</h3>
+            <div class="adapter-head">
+              <h3>1. 基本情報</h3>
+              <div class="channel-pills">
+                <button class="pill small-pill active" data-adapter-type="yaml" type="button">YAML 形式</button>
+                <button class="pill small-pill" data-adapter-type="javascript" type="button">JavaScript 形式</button>
+              </div>
+            </div>
             <div class="form-grid">
               <label>
                 <span>サイト名 *</span>
@@ -72,13 +80,13 @@
                 <input id="f-version" type="text" value="1.0.0">
               </label>
               <label>
-                <span>作成者名（任意）</span>
-                <input id="f-author" type="text" placeholder="ニックネーム / GitHub ID">
+                <span>作成者名（任意・空欄で匿名）</span>
+                <input id="f-author" type="text" placeholder="空欄なら anonymous">
               </label>
             </div>
             <label class="full-width">
-              <span>説明（掲示板・マーケットに表示）</span>
-              <input id="f-desc" type="text" placeholder="例: 目次・本文・ルビ対応（2026年11月確認）">
+              <span>説明（カタログに表示）</span>
+              <input id="f-desc" type="text" placeholder="例: 目次・本文・ルビ対応（動作確認済み）">
             </label>
             <div class="url-helper">
               <label class="flex-1">
@@ -93,6 +101,7 @@
             </label>
           </div>
 
+          <div id="yaml-builder-sections">
           <div class="card">
             <h3>2. 一覧（目次）取得の定義 (index)</h3>
             <p class="muted small">属性を取る場合は <code>セレクタ @属性名</code>（例: <code>a @href</code>）のように書けます。カンマ区切りで複数候補を指定可能です。</p>
@@ -161,9 +170,18 @@
               </label>
             </div>
           </div>
+          </div>
+
+          <div id="js-builder-section" class="card" hidden>
+            <h3>2. JavaScript パーサー定義 (SiteAdapter)</h3>
+            <p class="muted small">
+              <code>const SiteAdapter = { parseIndex: async (html, url) =&gt; ..., parseEpisode: async (html, url) =&gt; ... };</code> 形式で記述してください。
+            </p>
+            <textarea id="f-js-content" class="mono" rows="16" placeholder="const SiteAdapter = { ... };"></textarea>
+          </div>
 
           <details class="card">
-            <summary><strong>4. 通信ヘッダー・同期設定・サイト専用CSS（任意）</strong></summary>
+            <summary><strong>4. 通信ヘッダー・サイト専用CSS（任意）</strong></summary>
             <div class="details-body">
               <label class="full-width">
                 <span>User-Agent</span>
@@ -207,9 +225,15 @@
           </div>
 
           <div class="card">
-            <h3>出力・共有・野良掲示板へ投稿</h3>
+            <h3>出力・共有・野良カタログへ投稿</h3>
             <div class="action-stack">
-              <button id="btn-submit-issue" class="btn btn-accent full-btn" type="button">野良掲示板（GitHub Issue）へ投稿する</button>
+              <label>
+                <span>更新用パスコード（任意）</span>
+                <input id="f-edit-passcode" type="password" autocomplete="off" placeholder="設定しておくと後から同じ定義IDを更新できます（空欄なら上書き不可）">
+              </label>
+              <div id="turnstile-box" class="turnstile-box" hidden></div>
+              <button id="btn-submit-direct" class="btn btn-accent full-btn" type="button">野良カタログへ直接投稿する（アカウント不要）</button>
+              <div id="submit-status" class="submit-status" hidden></div>
               <div class="action-row">
                 <button id="btn-copy-unr1" class="btn btn-primary flex-1" type="button">共有コード (UNR1) をコピー</button>
                 <button id="btn-download-json" class="btn btn-secondary flex-1" type="button">.unr.json をダウンロード</button>
@@ -218,7 +242,7 @@
             </div>
 
             <details class="preview-box" open>
-              <summary>生成される YAML プレビュー</summary>
+              <summary id="preview-summary">生成される YAML プレビュー</summary>
               <pre id="yaml-preview" class="code-preview"></pre>
             </details>
           </div>
@@ -231,7 +255,7 @@
 
   <footer class="site-footer">
     <div class="container">
-      万能小説 (UniversalNovelReader) — GitHub Pages 無料カタログ＆ビルダー
+      万能小説 (UniversalNovelReader) — サイト定義カタログ＆ビルダー
     </div>
   </footer>
 
