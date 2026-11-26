@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>万能小説 サイト定義カタログ＆ビルダー</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=3">
 </head>
 <body>
   <header class="site-header">
     <div class="container header-inner">
-      <div>
+      <div class="header-brand">
         <h1>万能小説 サイト定義ハブ</h1>
         <p class="subtitle">UniversalNovelReader 向け サイト定義カタログ（公式・野良）＆ Webビルダー</p>
       </div>
@@ -18,8 +18,8 @@
       </div>
     </div>
     <nav class="container tabs" role="tablist">
-      <button class="tab-btn active" data-tab="catalog">カタログ一覧（公式・野良）</button>
-      <button class="tab-btn" data-tab="builder">サイト定義ビルダー（作成・テスト・投稿）</button>
+      <button class="tab-btn active" data-tab="catalog">カタログ一覧<span class="tab-sub">（公式・野良）</span></button>
+      <button class="tab-btn" data-tab="builder">サイト定義ビルダー<span class="tab-sub">（作成・テスト・投稿）</span></button>
     </nav>
   </header>
 
@@ -41,17 +41,17 @@
     <!-- ==================== タブ2: サイト定義ビルダー ==================== -->
     <section id="tab-builder" class="tab-panel">
       <div class="builder-intro card">
-        <div>
+        <div class="builder-intro-text">
           <h2>ブラウザでサイト定義を作成 → アカウント不要で野良カタログへ投稿</h2>
           <p class="muted">
             CSSセレクタまたは JavaScript を入力し、対象ページのHTMLソース（<code>Ctrl+U</code> でコピー）を貼るだけで抽出テストができます。完成したらアカウント不要・匿名でそのまま野良カタログへ公開できます。
           </p>
         </div>
         <div class="builder-intro-actions">
-          <button id="btn-copy-ai-prompt" class="btn btn-outline" type="button">AI解析用プロンプトをコピー</button>
-          <button id="btn-import-file" class="btn btn-outline" type="button">.unr.json ファイル読込</button>
+          <button id="btn-copy-ai-prompt" class="btn btn-outline btn-sm" type="button">AI解析用プロンプトをコピー</button>
+          <button id="btn-import-file" class="btn btn-outline btn-sm" type="button">.unr.json ファイル読込</button>
           <input id="file-import-input" type="file" accept=".json,.txt,application/json" hidden />
-          <button id="btn-import-existing" class="btn btn-outline" type="button">JSON / UNR1 貼付読込</button>
+          <button id="btn-import-existing" class="btn btn-outline btn-sm" type="button">JSON / UNR1 貼付読込</button>
         </div>
       </div>
 
@@ -59,7 +59,7 @@
         <!-- 左カラム: 入力フォーム -->
         <div class="builder-column">
           <div class="card">
-            <div class="adapter-head">
+            <div class="card-head-row">
               <h3>1. 基本情報</h3>
               <div class="channel-pills">
                 <button class="pill small-pill active" data-adapter-type="yaml" type="button">YAML 形式</button>
@@ -259,6 +259,6 @@
     </div>
   </footer>
 
-  <script src="./app.js"></script>
+  <script src="./app.js?v=3"></script>
 </body>
 </html>

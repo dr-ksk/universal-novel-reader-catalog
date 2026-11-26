@@ -367,7 +367,7 @@ function renderCatalog() {
   grid.innerHTML = "";
   if (filtered.length === 0) {
     const empty = document.createElement("div");
-    empty.className = "card muted";
+    empty.className = "card muted empty-card";
     empty.textContent =
       state.channel === "community" && list.length === 0
         ? "まだ野良サイト定義の投稿がありません。「サイト定義ビルダー」から最初の定義を投稿してみましょう！"
